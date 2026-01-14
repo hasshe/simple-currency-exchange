@@ -1,0 +1,11 @@
+/Users/hasshk/Desktop/private-workspace/simple-currency-exchange/src/main/java/org/example/Application.java
+/Users/hasshk/Desktop/private-workspace/simple-currency-exchange/src/main/java/org/example/CurrencyEnum.java
+/Users/hasshk/Desktop/private-workspace/simple-currency-exchange/src/main/java/org/example/controller/CurrencyExchangeController.java
+/Users/hasshk/Desktop/private-workspace/simple-currency-exchange/src/main/java/org/example/controller/dto/requests/ExchangeRequest.java
+/Users/hasshk/Desktop/private-workspace/simple-currency-exchange/src/main/java/org/example/controller/dto/responses/ExchangeRateResponse.java
+/Users/hasshk/Desktop/private-workspace/simple-currency-exchange/src/main/java/org/example/controller/dto/responses/ExchangeResponse.java
+/Users/hasshk/Desktop/private-workspace/simple-currency-exchange/src/main/java/org/example/mapper/ExchangeRateMapper.java
+/Users/hasshk/Desktop/private-workspace/simple-currency-exchange/src/main/java/org/example/repository/CurrencyExchangeRepository.java
+/Users/hasshk/Desktop/private-workspace/simple-currency-exchange/src/main/java/org/example/repository/entities/ExchangeRate.java
+/Users/hasshk/Desktop/private-workspace/simple-currency-exchange/src/main/java/org/example/service/CurrencyExchangeService.java
+/Users/hasshk/Desktop/private-workspace/simple-currency-exchange/src/main/java/org/example/service/CurrencyExchangeServiceImpl.java
