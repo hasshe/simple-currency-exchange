@@ -83,8 +83,10 @@ public class CurrencyExchangeServiceImpl implements CurrencyExchangeService {
             if (latestRate != null) {
                 if (latestRateInDb == null || LocalDate.parse(latestRate.date()).isAfter(latestRateInDb.getLatestRateDate())) {
                     saveExchangeRate(currencyFrom, currencyTo, latestRate);
+                    return new ExchangeRateResponse(currencyFrom.name(), currencyTo.name(), latestRate.value(), latestRate.date());
+                } else {
+                    return mapper.toDto(latestRateInDb);
                 }
-                return new ExchangeRateResponse(currencyFrom.name(), currencyTo.name(), latestRate.value(), latestRate.date());
             }
         }
         return null;
