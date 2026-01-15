@@ -20,8 +20,8 @@ public class RiksbankenApi {
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
 
-    public RiksbankenApi(ObjectMapper objectMapper) {
-        this.httpClient = HttpClient.newHttpClient();
+    public RiksbankenApi(HttpClient httpClient, ObjectMapper objectMapper) {
+        this.httpClient = httpClient;
         this.objectMapper = objectMapper;
     }
 
