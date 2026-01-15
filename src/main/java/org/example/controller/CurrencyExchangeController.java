@@ -30,13 +30,9 @@ public class CurrencyExchangeController {
         return ResponseEntity.ok(currencyExchangeService.getLatestExchangeRate(currencyFrom, currencyTo));
     }
 
-    // Todo: Request body with from and to currency and return the exhanged sum
-    // TODO: Support for SEK, USD and EUR
-    // TODO: Exchange should happen with the latest rates
     @PostMapping(value = "/exchange")
     public ResponseEntity<ExchangeResponse> exchangeCurrency(@RequestBody @NotNull @Valid ExchangeRequest request) {
-        return ResponseEntity.ok(new ExchangeResponse(request.currencyFrom().getCurrencyCode(), request.currencyTo().getCurrencyCode(),
-                request.amount(), request.amount(), request.amount()));
+        return ResponseEntity.ok(currencyExchangeService.exchangeCurrency(request.currencyFrom(), request.currencyTo(), request.amount()));
     }
 }
 

@@ -8,6 +8,7 @@ import java.util.Comparator;
 import java.util.List;
 import org.example.CurrencyEnum;
 import org.example.controller.dto.responses.ExchangeRateResponse;
+import org.example.controller.dto.responses.ExchangeResponse;
 import org.example.external.dto.CalendarDayResponse;
 import org.example.external.dto.CrossRateResponse;
 import org.example.external.RiksbankenApi;
@@ -55,6 +56,15 @@ public class CurrencyExchangeServiceImpl implements CurrencyExchangeService {
         if (latestRateFromPastWeek != null) return latestRateFromPastWeek;
 
         return latestRateInDb != null ? mapper.toDto(latestRateInDb) : null;
+    }
+
+    @Override
+    public ExchangeResponse exchangeCurrency(CurrencyEnum currencyFrom, CurrencyEnum currencyTo, double amount) {
+        var latestRate = getLatestExchangeRate(currencyFrom, currencyTo);
+        if (latestRate != null) {
+            return new ExchangeResponse(currencyFrom, currencyTo, amount, amount * latestRate.rate(), latestRate.rate());
+        }
+        return null;
     }
 
     private ExchangeRateResponse fetchLatestRate(CurrencyEnum currencyFrom, CurrencyEnum currencyTo, boolean isTodayBankDay, boolean isAfterCutoff, LocalDate today) {
