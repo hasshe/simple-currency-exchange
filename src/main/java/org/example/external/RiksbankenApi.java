@@ -35,7 +35,8 @@ public class RiksbankenApi {
                 .build();
 
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        return objectMapper.readValue(response.body(), new TypeReference<List<CalendarDayResponse>>() {});
+        return objectMapper.readValue(response.body(), new TypeReference<>() {
+        });
     }
 
     public List<CrossRateResponse> getCrossRates(String seriesId1, String seriesId2, LocalDate from) throws Exception {
