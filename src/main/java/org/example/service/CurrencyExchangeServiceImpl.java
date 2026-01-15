@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.Comparator;
 import java.util.List;
 import org.example.CurrencyEnum;
 import org.example.controller.dto.responses.ExchangeRateResponse;
@@ -38,45 +39,98 @@ public class CurrencyExchangeServiceImpl implements CurrencyExchangeService {
         LocalTime currentTime = stockholmTime.toLocalTime();
         LocalTime cutoffTime = LocalTime.of(HOUR, MINUTE);
 
-        ExchangeRate latestRate = repository.findLatestExchangeRateByCurrencies(currencyFrom, currencyTo);
-        if (latestRate != null && latestRate.getLatestRateDate().equals(today)) {
-            return mapper.toDto(latestRate);
+        ExchangeRate latestRateInDb = repository.findLatestExchangeRateByCurrencies(currencyFrom, currencyTo);
+
+        if (latestRateInDb != null && latestRateInDb.getLatestRateDate().equals(today)) {
+            return mapper.toDto(latestRateInDb);
         }
 
-        ExchangeRateResponse rateResponse = checkIfShouldGetAndSaveLatestExchangeRate(currencyFrom, currencyTo, currentTime, cutoffTime, today);
-        if (rateResponse != null) return rateResponse;
-        return mapper.toDto(latestRate != null ? latestRate : repository.findLatestExchangeRate());
+        boolean isTodayBankDay = isBankDay(today);
+        boolean isAfterCutoff = currentTime.isAfter(cutoffTime) || currentTime.equals(cutoffTime);
+
+        ExchangeRateResponse latestRate = fetchLatestRate(currencyFrom, currencyTo, isTodayBankDay, isAfterCutoff, today);
+        if (latestRate != null) return latestRate;
+
+        ExchangeRateResponse latestRateFromPastWeek = fetchLatestRateFromPastWeek(currencyFrom, currencyTo, latestRateInDb, isTodayBankDay, isAfterCutoff, today);
+        if (latestRateFromPastWeek != null) return latestRateFromPastWeek;
+
+        return latestRateInDb != null ? mapper.toDto(latestRateInDb) : null;
     }
 
-    private ExchangeRateResponse checkIfShouldGetAndSaveLatestExchangeRate(CurrencyEnum currencyFrom, CurrencyEnum currencyTo, LocalTime currentTime, LocalTime cutoffTime, LocalDate today) {
-        List<CalendarDayResponse> resp = getLatestExchangeRateFromApi();
-        boolean isBankDay = resp.getFirst().swedishBankday();
-        boolean isTimeAfter1615 = currentTime.isAfter(cutoffTime);
-
-        if (isBankDay && isTimeAfter1615) {
-            CrossRateResponse crossRate = getCrossRatesFromApi(currencyFrom.getCurrencyCode(), currencyTo.getCurrencyCode(), today).getFirst();
-
-            ExchangeRate newRate = new ExchangeRate(currencyFrom, crossRate.value(), LocalDate.parse(crossRate.date()), currencyTo);
-            repository.save(newRate);
-
-            return new ExchangeRateResponse(currencyFrom.name(), currencyTo.name(), crossRate.value(), crossRate.date());
+    private ExchangeRateResponse fetchLatestRate(CurrencyEnum currencyFrom, CurrencyEnum currencyTo, boolean isTodayBankDay, boolean isAfterCutoff, LocalDate today) {
+        if (isTodayBankDay && isAfterCutoff) {
+            CrossRateResponse todayRate = fetchAndSaveExchangeRate(currencyFrom, currencyTo, today);
+            if (todayRate != null) {
+                return new ExchangeRateResponse(currencyFrom.name(), currencyTo.name(), todayRate.value(), todayRate.date());
+            }
         }
         return null;
     }
 
-    private List<CalendarDayResponse> getLatestExchangeRateFromApi() {
+    private ExchangeRateResponse fetchLatestRateFromPastWeek(CurrencyEnum currencyFrom, CurrencyEnum currencyTo, ExchangeRate latestRateInDb, boolean isTodayBankDay, boolean isAfterCutoff, LocalDate today) {
+        if (latestRateInDb == null || (!isTodayBankDay || !isAfterCutoff)) {
+            CrossRateResponse latestRate = fetchLatestAvailableRate(currencyFrom, currencyTo, today);
+            if (latestRate != null) {
+                if (latestRateInDb == null || LocalDate.parse(latestRate.date()).isAfter(latestRateInDb.getLatestRateDate())) {
+                    saveExchangeRate(currencyFrom, currencyTo, latestRate);
+                }
+                return new ExchangeRateResponse(currencyFrom.name(), currencyTo.name(), latestRate.value(), latestRate.date());
+            }
+        }
+        return null;
+    }
+
+    private boolean isBankDay(LocalDate date) {
         try {
-            return riksbankenApi.getCalendarDays(LocalDate.now());
+            List<CalendarDayResponse> response = riksbankenApi.getCalendarDays(date);
+            return !response.isEmpty() && response.getFirst().swedishBankday();
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            return false;
         }
     }
 
-    private List<CrossRateResponse> getCrossRatesFromApi(String seriesId1, String seriesId2, LocalDate from) {
+    private CrossRateResponse fetchAndSaveExchangeRate(CurrencyEnum currencyFrom, CurrencyEnum currencyTo, LocalDate date) {
         try {
-            return riksbankenApi.getCrossRates(seriesId1, seriesId2, from);
+            List<CrossRateResponse> rates = riksbankenApi.getCrossRates(
+                    currencyFrom.getCurrencyCode(),
+                    currencyTo.getCurrencyCode(),
+                    date
+            );
+            if (!rates.isEmpty()) {
+                CrossRateResponse rate = rates.getFirst();
+                saveExchangeRate(currencyFrom, currencyTo, rate);
+                return rate;
+            }
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            // TODO: add logging
         }
+        return null;
+    }
+
+    private CrossRateResponse fetchLatestAvailableRate(CurrencyEnum currencyFrom, CurrencyEnum currencyTo, LocalDate today) {
+        try {
+            LocalDate fromDate = today.minusDays(7);
+            List<CrossRateResponse> rates = riksbankenApi.getCrossRates(
+                    currencyFrom.getCurrencyCode(),
+                    currencyTo.getCurrencyCode(),
+                    fromDate
+            );
+            return rates.stream()
+                    .max(Comparator.comparing(rateResponse -> LocalDate.parse(rateResponse.date())))
+                    .orElse(null);
+        } catch (Exception e) {
+            // TODO: add logging
+        }
+        return null;
+    }
+
+    private void saveExchangeRate(CurrencyEnum currencyFrom, CurrencyEnum currencyTo, CrossRateResponse crossRate) {
+        ExchangeRate newRate = new ExchangeRate(
+                currencyFrom,
+                crossRate.value(),
+                LocalDate.parse(crossRate.date()),
+                currencyTo
+        );
+        repository.save(newRate);
     }
 }
