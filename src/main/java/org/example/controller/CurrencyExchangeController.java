@@ -1,5 +1,8 @@
 package org.example.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import org.example.CurrencyEnum;
@@ -17,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/currency")
+@Tag(name = "Currency Exchange", description = "Currency exchange rate and conversion operations")
 public class CurrencyExchangeController {
 
     private final CurrencyExchangeService currencyExchangeService;
@@ -25,18 +29,18 @@ public class CurrencyExchangeController {
         this.currencyExchangeService = currencyExchangeService;
     }
 
+    @Operation(summary = "Get current exchange rate", description = "Retrieves the latest exchange rate between two currencies")
     @GetMapping("/current-rates/{currencyFrom}/{currencyTo}")
-    public ResponseEntity<ExchangeRateResponse> getLatestExchangeRates(@PathVariable CurrencyEnum currencyFrom, @PathVariable CurrencyEnum currencyTo) {
+    public ResponseEntity<ExchangeRateResponse> getLatestExchangeRates(
+            @Parameter(description = "Source currency code") @PathVariable CurrencyEnum currencyFrom,
+            @Parameter(description = "Target currency code") @PathVariable CurrencyEnum currencyTo) {
         return ResponseEntity.ok(currencyExchangeService.getLatestExchangeRate(currencyFrom, currencyTo));
     }
 
+    @Operation(summary = "Exchange currency", description = "Converts an amount from one currency to another using the latest exchange rate")
     @PostMapping(value = "/exchange")
-    public ResponseEntity<ExchangeResponse> exchangeCurrency(@RequestBody @NotNull @Valid ExchangeRequest request) {
+    public ResponseEntity<ExchangeResponse> exchangeCurrency(
+            @Parameter(description = "Exchange request with source currency, target currency, and amount") @RequestBody @NotNull @Valid ExchangeRequest request) {
         return ResponseEntity.ok(currencyExchangeService.exchangeCurrency(request.currencyFrom(), request.currencyTo(), request.amount()));
     }
 }
-
-// TODO: add tests unit + integration
-// TODO: Extra - dockerfile
-// TODO: OpenApi documentation with swagger
-// TODO: Readme.md
